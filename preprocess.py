@@ -62,7 +62,3 @@ print("New dataset size:{}".format(len(data)))
 sample = data.sample(n=100)
 for col in data.columns:
 	print(col)
-# hist = data['WAGE_RATE_OF_PAY_FROM_1'].hist()
-plt.boxplot(data['WAGE_RATE_OF_PAY_FROM_1'].dropna())
-plt.show()
-breakpoint()
