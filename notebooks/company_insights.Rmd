@@ -1,0 +1,167 @@
+---
+title: "Company Insights"
+output:
+  html_document:
+    df_print: paged
+---
+
+```{r}
+library(ggplot2)
+library(dplyr)
+library(tidyverse)
+library(forcats)
+library(choroplethr)
+library(choroplethrMaps)
+library(arules)
+```
+
+
+
+```{r}
+df <- read.csv("../data/processed/processed_2019.csv") #Using most recent data
+states <- read.csv("../data/external/states.csv")
+```
+
+Data dimensions
+```{r}
+print(dim(df))
+```
+
+
+Print column names
+```{r}
+names(df)
+```
+
+```{r}
+head(df)
+```
+```{r}
+top_companies = df %>% group_by(EMPLOYER_NAME) %>%  summarise(Frequency = n()) %>% arrange(desc(Frequency))
+
+ggplot(top_companies[1:20,],
+       aes(y = fct_rev(fct_inorder(factor(EMPLOYER_NAME))),
+           x = Frequency)) + 
+  geom_col() +
+  labs(y = "Employer Name")
+```
+The top 20 is dominated by Tech and Consulting companies (primarily). However, it's worth noticing that these companies are also very big in terms of their worth and more importantly, their number of employees. For example, Cognizant has 289.000 employees, Infosys 242.000, Tata Consultancy has 470.000, Google 135.000. It might be interesting to normalize these frequencies by the company size to get a better sense of the probability that a company sponsors an H1B visa for an employee.
+
+```{r}
+#state_choropleth(df,)
+a<- df %>% 
+  group_by(EMPLOYER_STATE) %>% 
+  summarise(value = n()) %>% 
+  filter(EMPLOYER_STATE %in% states$Code)
+
+a<- merge(a,states,by.x = "EMPLOYER_STATE",by.y = "Code") %>% mutate(region = tolower(State))
+
+data(a)
+state_choropleth(as.data.frame(a),title  = "H1B visa requests in the US", 
+                 legend = "Frequency")
+```
+
+```{r,fig.height= 7}
+
+
+merge(df,states,by.x = "EMPLOYER_STATE",by.y = "Code") %>%
+  ggplot(aes(y = fct_rev(fct_infreq(State)))) + 
+  geom_bar() +
+  labs(y = "State", x = "Frequency")
+```
+
+There may be multiple reasons influencing the number of H1B visas requests by state. Some of them could be:
+
+* Number of immigrants 
+* Whether or not there is a high demand for tech jobs (since we've seen a connection with technology)
+* Simply the population size
+
+
+```{r}
+get_num_digits <-function(x){
+                  num_digits = floor (log10 (abs (x))) + 1
+                  return(num_digits)
+}
+
+strict_substr <-function(df,column,start,finish){
+  return(if_else(str_length(df[,column]) >=finish, substr(df[,column],start,finish),NULL))
+}
+
+df$NAICS_CODE <- as.character(df$NAICS_CODE)
+
+df$naics_sector <-strict_substr(df,"NAICS_CODE",1,2)
+df$industry_group <- strict_substr(df,"NAICS_CODE",1,4)
+df$naics_industry <- strict_substr(df,"NAICS_CODE",1,5)
+df$national_industry <- strict_substr(df,"NAICS_CODE",1,6)
+```
+
+```{r}
+top_n = 20
+df %>%
+  group_by(industry_group) %>% 
+  summarise(Frequency = n()) %>% 
+  arrange(desc(Frequency)) %>%
+  head(top_n) %>%
+  ggplot(aes(y = fct_rev(fct_inorder(factor(industry_group))), x = Frequency)) +
+  geom_col()
+```
+
+
+
+```{r}
+head(df$WAGE_RATE_OF_PAY_FROM_1)
+df[df$WAGE_RATE_OF_PAY_FROM_1<=500000,]%>% ggplot(aes(x = WAGE_RATE_OF_PAY_FROM_1)) + geom_histogram()
+```
+
+
+```{r}
+personal_income=read.csv("../data/processed/personal_income.csv")
+personal_income
+```
+
+These income ranges are too specific for this analysis so we decided to group by ranges of $25K, except for the last category which is still 100K or more. For this we created a new variable that gets the upper bound of the new categories by using a simple modulo operation over the lower bounds of the old categories. I can 
+
+```{r}
+
+group_size = 25000
+num_breaks = (max(personal_income$lower_bound)-min(personal_income$lower_bound)+1)/group_size
+breaks  = c(seq(0,100000,group_size),100000.0001)
+
+personal_income$new_groups <-discretize(personal_income$lower_bound,method = "fixed",breaks=breaks,infinity = TRUE)
+personal_income$new_groups_labes <- fct_recode(personal_income$new_groups,
+                                               "Less than $25K"="[-Inf,2.5e+04)",
+                                               "$25K to $50K" = "[2.5e+04,5e+04)",
+                                               "$50K to $75K" = "[5e+04,7.5e+04)",
+                                               "$75K to $100K" = "[7.5e+04,1e+05)",
+                                               "$100K or more" = "[1e+05, Inf]")
+personal_income
+```
+```{r}
+personal_income %>% 
+  group_by(new_groups_labes) %>% 
+  summarise(percentage = sum(frequency)*100/sum(personal_income$frequency)) %>%
+  ggplot(aes(x = new_groups_labes, y = percentage)) +
+  geom_col()
+  
+```
+
+```{r}
+
+df$income_group <-discretize(df$WAGE_RATE_OF_PAY_FROM_1,method = "fixed",breaks=breaks,infinity = TRUE)
+df$income_group <- fct_recode(df$income_group,
+                                               "Less than $25K"="[-Inf,2.5e+04)",
+                                               "$25K to $50K" = "[2.5e+04,5e+04)",
+                                               "$50K to $75K" = "[5e+04,7.5e+04)",
+                                               "$75K to $100K" = "[7.5e+04,1e+05)",
+                                               "$100K or more" = "[1e+05, Inf]")
+
+
+n = nrow(df)
+df %>% 
+  group_by(income_group) %>% 
+  summarise(percentage = n()/n) %>%
+  ggplot(aes(x = income_group, y = percentage)) +
+  geom_col()
+  
+```
+
