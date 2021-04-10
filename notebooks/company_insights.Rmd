@@ -18,7 +18,7 @@ library(arules)
 
 
 ```{r}
-df <- read.csv("../data/processed/processed_2019.csv") #Using most recent data
+df <- read.csv("../data/processed/processed_2019_V2.csv") #Using most recent data
 states <- read.csv("../data/external/states.csv")
 ```
 
@@ -63,8 +63,9 @@ state_choropleth(as.data.frame(a),title  = "H1B visa requests in the US",
 
 ```{r,fig.height= 7}
 
+df <- merge(df,states,by.x = "EMPLOYER_STATE",by.y = "Code")
 
-merge(df,states,by.x = "EMPLOYER_STATE",by.y = "Code") %>%
+df %>%
   ggplot(aes(y = fct_rev(fct_infreq(State)))) + 
   geom_bar() +
   labs(y = "State", x = "Frequency")
@@ -109,8 +110,8 @@ df %>%
 
 
 ```{r}
-head(df$WAGE_RATE_OF_PAY_FROM_1)
-df[df$WAGE_RATE_OF_PAY_FROM_1<=500000,]%>% ggplot(aes(x = WAGE_RATE_OF_PAY_FROM_1)) + geom_histogram()
+head(df$hourly_wage)
+df[df$hourly_wage<=300,]%>% ggplot(aes(x = hourly_wage)) + geom_histogram()
 ```
 
 
@@ -147,7 +148,7 @@ personal_income %>%
 
 ```{r}
 
-df$income_group <-discretize(df$WAGE_RATE_OF_PAY_FROM_1,method = "fixed",breaks=breaks,infinity = TRUE)
+df$income_group <-discretize(df$annual_wage,method = "fixed",breaks=breaks,infinity = TRUE)
 df$income_group <- fct_recode(df$income_group,
                                                "Less than $25K"="[-Inf,2.5e+04)",
                                                "$25K to $50K" = "[2.5e+04,5e+04)",
@@ -163,5 +164,21 @@ df %>%
   ggplot(aes(x = income_group, y = percentage)) +
   geom_col()
   
+```
+
+
+```{r}
+top_n = 5
+cols = c("SOC_CODE","EMPLOYER_STATE","EMPLOYER_NAME")
+top_companies_by_soc_state <- df[,cols] %>% group_by(SOC_CODE,EMPLOYER_STATE,EMPLOYER_NAME) %>%
+  summarise(frequency = n()) %>%
+  slice_max(order_by = frequency, n = top_n)
+```
+
+
+Filter example#
+```{r}
+#TODO: change soc code by name
+top_companies_by_soc_state[(top_companies_by_soc_state$SOC_CODE == 15) & (top_companies_by_soc_state$EMPLOYER_STATE == "MA"),]
 ```
 
