@@ -8,6 +8,32 @@
 
   <body>
 
+    <div id="ic-description" style="width: 600px">	
+        <h3>Company Recommender</h3>
+        <p>
+            Which company should you work for to maximize your chances of getting and H1-B Visa sponsored?
+        </p>
+        <p>
+            Select a State and your closest job category and we show you the top employers!
+        </p>
+        <div class="switch-toggle switch-3 switch-candy">
+            <!-- <input id="offense-toggle" name="state-d" type="radio" checked=""/>
+            <label for="offense-toggle">Offense</label>
+          
+            <input id="default-toggle" name="state-d" type="radio" checked="checked" />
+            <label for="default-toggle">Default</label>
+          
+            <input id="defense-toggle" name="state-d" type="radio" />
+            <label for="defense-toggle">Defense</label> -->
+          
+            <a></a>
+        </div>
+        <br>
+    </div>
+
+
+    <div id="interactive-component">
+    </div>
     <script>
 
 // Read data      
@@ -20,6 +46,15 @@ var rowConverter = function (d) {
     }
 };  
 
+// based on https://gist.github.com/huytd/327e453c95ca3edadb32d0c867e2561b
+function textSize(text) {
+    if (!d3) return;
+    var container = d3.select("#interactive-component").append("svg");
+    container.append('text').attr("x",-99999).attr("y",-99999).text(text);
+    var size = container.node().getBBox();
+    container.remove();
+    return { width: size.width, height: size.height };
+}
 
 d3.csv("https://raw.githubusercontent.com/cconst04/H1B-Visas-Insights/master/data/processed/top_companies_by_soc_state.csv", rowConverter)
   .then(function(data) {
@@ -51,16 +86,20 @@ function getFilteredData(data, state, job_cat) {
 	return data.filter(function(d) { return (d.e_state === state)&&(d.job_cat === job_cat); });
     };
     
-var initial_data = getFilteredData(data, "CA", "15")
+var filtered_data = getFilteredData(data, "CA", "19")
 
 //constants
 var w = 700;
 var h = 400;
 var top_n = 5;
 var offset = 0;
+var max_employer_name_length = d3.max(data, function(d) {return d.e_name.length});
+var longest_e_name = d3.filter(data,function(d) {return d.e_name.length == max_employer_name_length })[0].e_name
+
 
 //variables
-var top_employers = initial_data.map(d => d.e_name)
+var top_employers = filtered_data.map(d => d.e_name)
+console.log(top_employers)
 
 //Margins
 var margin = {top: 25, right: 0, bottom: 25,
@@ -68,17 +107,15 @@ var margin = {top: 25, right: 0, bottom: 25,
 var innerWidth = w - margin.left - margin.right;
 var innerHeight = h - margin.top - margin.bottom;
 
-console.log(top_employers)
 //Scales
 var yScale = d3.scaleBand()
     //.domain(d3.range(5,0,-1))
-    .domain(initial_data, function(d) {return d.e_name;})
-    .range([innerHeight,0])
-    .paddingInner(.1);
+    .domain(top_employers)
+    .range([0,innerHeight])
+    .paddingInner(.5);
 
-console.log(data[0])
 var xScale = d3.scaleLinear()
-    .domain([0, d3.max(data, function(d) {return d.freq;} )])
+    .domain([0, d3.max(filtered_data, function(d) {return d.freq;} )])
     .range([0, innerWidth])
 
 
@@ -89,7 +126,7 @@ var yAxis = d3.axisLeft()
     .scale(yScale);
 
  // add svg
- var svg = d3.select("body")
+ var svg = d3.select("#interactive-component")
     .append("svg")
       .attr("width", w)
       .attr("height", h);
@@ -98,15 +135,26 @@ var bars = svg.append("g")
     .attr("id", "bars")
     .attr("transform", `translate (${margin.left}, ${margin.top})`)
 .selectAll("rect")
-    .data(initial_data);
+    .data(filtered_data);
 
 bars.enter().append("rect")
-    .attr("y", (d, i) => yScale(i+1))
-    .attr("x", d => 0)
+    .attr("y", (d, i) => yScale(top_employers[i]))
+    .attr("x", 0)
     .attr("height", yScale.bandwidth())
     .attr("width", d => xScale(d.freq))
     .attr("fill", "blue");
 
+
+d3.select("#bars").selectAll("text")
+    .attr("transform", `translate (${margin.left}, ${margin.top})`)
+    .data(top_employers)
+    .enter()
+    .append("text")
+    .attr("x", 0 )
+    .attr("y", d => yScale(d)-1)
+    .text(d => d)
+    .attr("fill", "black")
+    .attr("text-anchor", "right");
 
 // add axes
 
@@ -122,15 +170,14 @@ svg.append("g")
 
 
 
-
-
 })
   .catch(function(error) {
     console.log(error);  
   });
 
+    
     </script>
-
+    
   </body>
 
 </html>
