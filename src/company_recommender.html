@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>General Update Pattern</title>
+    <script src="https://d3js.org/d3.v6.js"></script>
+  </head>
+
+  <body>
+
+    <script>
+
+// Read data      
+var rowConverter = function (d) {
+  return {
+    job_cat: d.SOC_CODE,
+    e_state: d.EMPLOYER_STATE,
+    e_name: d.EMPLOYER_NAME,
+    freq: +d.frequency
+    }
+};  
+
+
+d3.csv("https://raw.githubusercontent.com/cconst04/H1B-Visas-Insights/master/data/processed/top_companies_by_soc_state.csv", rowConverter)
+  .then(function(data) {
+
+//Update
+function update(data) {
+    var bars = svg.selectAll("rect")    // data join
+    .data(data);
+
+    bars.enter()
+        .append("rect")    // add new elements
+        .attr("x", "30")
+        .attr("y", (d, i) => i*50)
+        .attr("width", d => d)
+        .attr("height", "35")
+        .attr("fill", "yellow")
+        .merge(bars)    // merge
+        .transition()
+        .duration(2000)
+        .attr("width", d => d)
+        .attr("fill", "orange");
+
+    bars.exit().remove();    // remove extra elements
+    };
+
+//Function to filter data based on groups.
+//Inspired by https://stackoverflow.com/questions/39964570/how-to-filter-data-with-d3-js
+function getFilteredData(data, state, job_cat) {
+	return data.filter(function(d) { return (d.e_state === state)&&(d.job_cat === job_cat); });
+    };
+    
+var initial_data = getFilteredData(data, "CA", "15")
+
+//constants
+var w = 700;
+var h = 400;
+var top_n = 5;
+var offset = 0;
+
+
+var margin = {top: 25, right: 0, bottom: 25,
+    left: 50};
+var innerWidth = w - margin.left - margin.right;
+var innerHeight = h - margin.top - margin.bottom;
+
+var yScale = d3.scaleBand()
+    .domain(d3.range(offset,top_n+offset))
+    .range([innerHeight,0])
+    .paddingInner(.1);
+
+console.log(data[0])
+var xScale = d3.scaleLinear()
+    .domain([0, d3.max(data, function(d) {return d.freq;} )])
+    .range([0, innerWidth])
+
+
+var xAxis = d3.axisBottom()
+    .scale(xScale);
+
+var yAxis = d3.axisLeft()
+    .scale(yScale);
+ // add svg
+
+ var svg = d3.select("body")
+    .append("svg")
+      .attr("width", w)
+      .attr("height", h);
+
+var bars = svg.append("g")
+    .attr("id", "bars")
+    .attr("transform", `translate (${margin.left}, ${margin.top})`)
+.selectAll("rect")
+    .data(initial_data);
+
+bars.enter().append("rect")
+    .attr("y", (d, i) => innerHeight - yScale.bandwidth()- yScale(i))
+    .attr("x", d => 0)
+    .attr("height", yScale.bandwidth())
+    .attr("width", d => xScale(d.freq))
+    .attr("fill", "blue");
+
+
+// add axes
+
+svg.append("g")
+      .attr("class", "yAxis")
+      .attr("transform", `translate (${margin.left}, ${margin.bottom})`)
+      .call(yAxis);
+
+  svg.append("g")
+      .attr("class", "xAxis")
+      .attr("transform", `translate (${margin.left}, ${h-margin.bottom})`)
+      .call(xAxis);
+
+
+
+
+
+})
+  .catch(function(error) {
+    console.log(error);  
+  });
+
+    </script>
+
+  </body>
+
+</html>
