@@ -59,14 +59,20 @@ var h = 400;
 var top_n = 5;
 var offset = 0;
 
+//variables
+var top_employers = initial_data.map(d => d.e_name)
 
+//Margins
 var margin = {top: 25, right: 0, bottom: 25,
     left: 50};
 var innerWidth = w - margin.left - margin.right;
 var innerHeight = h - margin.top - margin.bottom;
 
+console.log(top_employers)
+//Scales
 var yScale = d3.scaleBand()
-    .domain(d3.range(offset,top_n+offset))
+    //.domain(d3.range(5,0,-1))
+    .domain(initial_data, function(d) {return d.e_name;})
     .range([innerHeight,0])
     .paddingInner(.1);
 
@@ -81,8 +87,8 @@ var xAxis = d3.axisBottom()
 
 var yAxis = d3.axisLeft()
     .scale(yScale);
- // add svg
 
+ // add svg
  var svg = d3.select("body")
     .append("svg")
       .attr("width", w)
@@ -95,7 +101,7 @@ var bars = svg.append("g")
     .data(initial_data);
 
 bars.enter().append("rect")
-    .attr("y", (d, i) => innerHeight - yScale.bandwidth()- yScale(i))
+    .attr("y", (d, i) => yScale(i+1))
     .attr("x", d => 0)
     .attr("height", yScale.bandwidth())
     .attr("width", d => xScale(d.freq))
