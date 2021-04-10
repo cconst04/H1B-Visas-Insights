@@ -4,11 +4,15 @@
     <meta charset="utf-8">
     <title>General Update Pattern</title>
     <script src="https://d3js.org/d3.v6.js"></script>
+
+    <!-- Initialize a select button -->
+    <select id="selectState"></select>
+
   </head>
 
   <body>
 
-    <div id="ic-description" style="width: 600px">	
+    <div id="ic-description" style="width: 600px">  
         <h3>Company Recommender</h3>
         <p>
             Which company should you work for to maximize your chances of getting and H1-B Visa sponsored?
@@ -59,34 +63,17 @@ function textSize(text) {
 d3.csv("https://raw.githubusercontent.com/cconst04/H1B-Visas-Insights/master/data/processed/top_companies_by_soc_state.csv", rowConverter)
   .then(function(data) {
 
-//Update
-function update(data) {
-    var bars = svg.selectAll("rect")    // data join
-    .data(data);
-
-    bars.enter()
-        .append("rect")    // add new elements
-        .attr("x", "30")
-        .attr("y", (d, i) => i*50)
-        .attr("width", d => d)
-        .attr("height", "35")
-        .attr("fill", "yellow")
-        .merge(bars)    // merge
-        .transition()
-        .duration(2000)
-        .attr("width", d => d)
-        .attr("fill", "orange");
-
-    bars.exit().remove();    // remove extra elements
-    };
-
 //Function to filter data based on groups.
 //Inspired by https://stackoverflow.com/questions/39964570/how-to-filter-data-with-d3-js
 function getFilteredData(data, state, job_cat) {
-	return data.filter(function(d) { return (d.e_state === state)&&(d.job_cat === job_cat); });
+    return data.filter(function(d) { return (d.e_state === state)&&(d.job_cat === job_cat); });
     };
     
-var filtered_data = getFilteredData(data, "CA", "19")
+function filter_by_state(data, state) {
+    return data.filter(function(d) { return (d.e_state === state); });
+    };
+
+var filtered_data = getFilteredData(data, "TX", "15")
 
 //constants
 var w = 700;
@@ -95,11 +82,30 @@ var top_n = 5;
 var offset = 0;
 var max_employer_name_length = d3.max(data, function(d) {return d.e_name.length});
 var longest_e_name = d3.filter(data,function(d) {return d.e_name.length == max_employer_name_length })[0].e_name
+var states = [...new Set(data.map(d => d.e_state))]
+
+//var filtered_data_by_state =  filter_by_state(data, "TX")
+
+
+//data.filter(function(d) {return } )
+
+//var soc_codes = data.map(d => d.e_state)
+
+
+//dropdowns
+d3.select("#selectState")
+    .selectAll('states')
+    .data(states)
+    .enter()
+    .append('option')
+    .text(d=>d) // text showed in the menu
+    .attr("value", function (d) { return d; }) // corresponding value returned by the button
+
+
 
 
 //variables
 var top_employers = filtered_data.map(d => d.e_name)
-console.log(top_employers)
 
 //Margins
 var margin = {top: 25, right: 0, bottom: 25,
@@ -109,15 +115,14 @@ var innerHeight = h - margin.top - margin.bottom;
 
 //Scales
 var yScale = d3.scaleBand()
-    //.domain(d3.range(5,0,-1))
-    .domain(top_employers)
+    .domain(d3.range(1,top_n+1))
+    //.domain(top_employers)
     .range([0,innerHeight])
     .paddingInner(.5);
 
 var xScale = d3.scaleLinear()
     .domain([0, d3.max(filtered_data, function(d) {return d.freq;} )])
     .range([0, innerWidth])
-
 
 var xAxis = d3.axisBottom()
     .scale(xScale);
@@ -138,35 +143,107 @@ var bars = svg.append("g")
     .data(filtered_data);
 
 bars.enter().append("rect")
-    .attr("y", (d, i) => yScale(top_employers[i]))
+    .attr("y", (d, i) => yScale(i+1))
     .attr("x", 0)
     .attr("height", yScale.bandwidth())
     .attr("width", d => xScale(d.freq))
     .attr("fill", "blue");
 
-
-d3.select("#bars").selectAll("text")
+//Labels
+var labels = d3.select("#bars")
+    .selectAll("text")
     .attr("transform", `translate (${margin.left}, ${margin.top})`)
     .data(top_employers)
-    .enter()
+
+labels.enter()
     .append("text")
+    .attr("class",'label')
     .attr("x", 0 )
-    .attr("y", d => yScale(d)-1)
+    .attr("y", (d,i) =>  yScale(i+1)-3)
     .text(d => d)
     .attr("fill", "black")
     .attr("text-anchor", "right");
 
-// add axes
 
+// add axes
 svg.append("g")
-      .attr("class", "yAxis")
+      .attr("id", "yAxis")
       .attr("transform", `translate (${margin.left}, ${margin.bottom})`)
       .call(yAxis);
 
-  svg.append("g")
-      .attr("class", "xAxis")
-      .attr("transform", `translate (${margin.left}, ${h-margin.bottom})`)
-      .call(xAxis);
+svg.append("g")
+    .attr("id", "xAxis")
+    .attr("transform", `translate (${margin.left}, ${h-margin.bottom})`)
+    .call(xAxis);
+
+//Update
+function update(data) {
+
+
+    //Top employers
+    var top_employers = data.map(d => d.e_name)
+
+    //Update xAxis
+    xScale.domain([0, d3.max(data, function(d) {return d.freq;} )]);
+    svg.select("#xAxis")
+     .attr("transform", `translate (${margin.left}, ${h-margin.bottom})`)
+     .transition().duration(2000).call(xAxis);
+
+
+
+
+    //Update bars
+    var bars = svg.selectAll("rect")    // data join
+    .data(data);
+
+    bars.enter()
+        .append("rect")    // add new elements
+        .attr("x", 0)
+        .attr("y", (d, i) => yScale(i+1))
+        .attr("width", d => xScale(d.freq))
+        .attr("height", yScale.bandwidth())
+        .attr("fill", "blue")
+        .merge(bars)    // merge
+        .transition()
+        .duration(2000)
+        .attr("width", d => xScale(d.freq))
+        .attr("fill", "blue");
+
+    bars.exit().remove();    // remove extra elements
+
+
+     //Update labels
+     var labels = d3.select("#bars")
+        .selectAll(".label")
+        .data(top_employers)
+
+    //setTimeout(() => {  
+
+    labels.enter() //add new elements just in case
+        .attr("x", 0 )
+        .attr("y", (d,i) =>  yScale(i+1)-3)
+        .attr("fill", "black")
+        .attr("text-anchor", "right")
+        .text(d => d)
+        .merge(labels)
+        .transition()
+        .duration(1000)
+        .style("opacity", 0)
+        .transition().duration(500)
+        .style("opacity", 1)
+        .text(d => d);
+       // }, 2000);
+
+    };
+
+
+d3.select("#selectState").on("change",function(d){
+    //Get input from state
+    var selectedState = d3.select(this).property("value")
+    console.log(getFilteredData(data, selectedState, "15"))
+    update(filtered_data = getFilteredData(data, selectedState, "15"))
+
+})
 
 
 
@@ -181,3 +258,4 @@ svg.append("g")
   </body>
 
 </html>
+

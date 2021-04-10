@@ -172,13 +172,18 @@ top_n = 5
 cols = c("SOC_CODE","EMPLOYER_STATE","EMPLOYER_NAME")
 top_companies_by_soc_state <- df[,cols] %>% group_by(SOC_CODE,EMPLOYER_STATE,EMPLOYER_NAME) %>%
   summarise(frequency = n()) %>%
-  slice_max(order_by = frequency, n = top_n)
+  slice_max(order_by = frequency, n = top_n, with_ties = FALSE)
 ```
 
+```{r}
+write.csv(top_companies_by_soc_state,"../data/processed/top_companies_by_soc_state.csv")
+```
 
-Filter example#
+Filter example
 ```{r}
 #TODO: change soc code by name
-top_companies_by_soc_state[(top_companies_by_soc_state$SOC_CODE == 15) & (top_companies_by_soc_state$EMPLOYER_STATE == "MA"),]
+top_companies_by_soc_state[(top_companies_by_soc_state$SOC_CODE == 15) & (top_companies_by_soc_state$EMPLOYER_STATE == "HI"),]
 ```
+
+
 
