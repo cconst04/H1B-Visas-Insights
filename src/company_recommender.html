@@ -37,8 +37,8 @@
 // Read data      
 var rowConverter = function (d) {
   return {
-    job_cat: d.SOC_CODE,
-    e_state: d.EMPLOYER_STATE,
+    job_cat: d.job_category,
+    e_state: d.State,
     e_name: d.EMPLOYER_NAME,
     freq: +d.frequency
     }
@@ -69,11 +69,9 @@ function filter_by_state(data, state) {
 
    
     
-//var initial_state = "California"
-//var initial_soc_code = "Computer and Mathematical Occupations"
-    
-var initial_state = "CA"
-var initial_soc_code = "15"
+var initial_state = "California"
+var initial_soc_code = "Computer and Mathematical Occupations"
+   
 
 
 var filtered_data = getFilteredData(data, initial_state, initial_soc_code)
@@ -256,7 +254,7 @@ function update(data) {
    
 
 d3.select("#selectState").on("change",function(d){
-    //Get input from state
+    //Get input from state and soc code
     var selectedState = d3.select(this).property("value")
 
     //filter data by state
@@ -264,16 +262,19 @@ d3.select("#selectState").on("change",function(d){
 
     //Update possible soc codes
     var soc_codes_of_state = [...new Set(filtered_data_by_state.map(d => d.job_cat))]
+    console.log(soc_codes_of_state)
     var soc_code_options = d3.select("#selectSocCode")
                              .selectAll('option')
                              .data(soc_codes_of_state)
+    console.log(soc_code_options.enter())
     soc_code_options.enter()
         .append('option')
         .text(d=>d) // text showed in the menu
-        .attr("value", function (d) { return d; }) // corresponding value returned by the button
+        .attr("value", d=>d) // corresponding value returned by the button
+        .merge(soc_code_options)
+    
+    console.log(soc_code_options.exit())
     soc_code_options.exit().remove(); 
-
-
 
     var selectedSocCode = d3.select("#selectSocCode").property("value")
     if (soc_codes_of_state.includes(selectedSocCode)) {
@@ -282,7 +283,7 @@ d3.select("#selectState").on("change",function(d){
     } else {
         update(filtered_data = getFilteredData(data, selectedState, soc_codes_of_state[0]))
     
-    }
+    } 
 
 })
 
@@ -290,6 +291,7 @@ d3.select("#selectSocCode").on("change",function(d){
     var selectedSocCode = d3.select(this).property("value")
     var selectedState = d3.select("#selectState").property("value")
 
+    
     update(filtered_data = getFilteredData(data, selectedState, selectedSocCode))
 
 })
