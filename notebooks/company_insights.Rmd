@@ -20,6 +20,7 @@ library(arules)
 ```{r}
 df <- read.csv("../data/processed/processed_2019_V2.csv") #Using most recent data
 states <- read.csv("../data/external/states.csv")
+soc_codes = read.csv("../data/processed/soc_codes.csv")
 ```
 
 Data dimensions
@@ -173,7 +174,13 @@ cols = c("SOC_CODE","EMPLOYER_STATE","EMPLOYER_NAME")
 top_companies_by_soc_state <- df[,cols] %>% group_by(SOC_CODE,EMPLOYER_STATE,EMPLOYER_NAME) %>%
   summarise(frequency = n()) %>%
   slice_max(order_by = frequency, n = top_n, with_ties = FALSE)
+
+top_companies_by_soc_state <- merge(top_companies_by_soc_state,soc_codes,by = "SOC_CODE")
+
+top_companies_by_soc_state <- rename(top_companies_by_soc_state[,2:5],SOC_CODE = job_category)
 ```
+
+
 
 ```{r}
 write.csv(top_companies_by_soc_state,"../data/processed/top_companies_by_soc_state.csv")
@@ -182,7 +189,7 @@ write.csv(top_companies_by_soc_state,"../data/processed/top_companies_by_soc_sta
 Filter example
 ```{r}
 #TODO: change soc code by name
-top_companies_by_soc_state[(top_companies_by_soc_state$SOC_CODE == 45) & (top_companies_by_soc_state$EMPLOYER_STATE == "MD"),]
+top_companies_by_soc_state[(top_companies_by_soc_state$EMPLOYER_STATE == "MD"),]
 ```
 
 

@@ -24,20 +24,8 @@
             Which company should you work for to maximize your chances of getting and H1-B Visa sponsored?
         </p>
         <p>
-            Select a State and your closest job category and we show you the top employers!
+            Select a State and your closest job category and we show you the top ranked employers!
         </p>
-        <div class="switch-toggle switch-3 switch-candy">
-            <!-- <input id="offense-toggle" name="state-d" type="radio" checked=""/>
-            <label for="offense-toggle">Offense</label>
-          
-            <input id="default-toggle" name="state-d" type="radio" checked="checked" />
-            <label for="default-toggle">Default</label>
-          
-            <input id="defense-toggle" name="state-d" type="radio" />
-            <label for="defense-toggle">Defense</label> -->
-          
-            <a></a>
-        </div>
         <br>
     </div>
 
@@ -186,11 +174,18 @@ labels.enter().append("text")
     .attr("fill", "black")
     .attr("text-anchor", "right");
 
-
+var xlab = d3.select("#bars").attr("transform", `translate (${margin.left}, ${margin.top})`)
+/* xlab.append("text")
+    .attr("class", "x label")
+    .attr("text-anchor", "end")
+    .attr("x",500)
+    .attr("y", 360)
+    .text("Number of H1-B Visas Sponsored in 2019");
+ */
 // add axes
 svg.append("g")
       .attr("id", "yAxis")
-      .attr("transform", `translate (${margin.left}, ${margin.bottom})`)
+      .attr("transform", `translate (${margin.left}, ${margin.top})`)
       .call(yAxis);
 
 svg.append("g")
@@ -303,8 +298,17 @@ d3.select("#selectSocCode").on("change",function(d){
     console.log(error);  
   });
 
+  
+
     
     </script>
+        <div id="ic-description" style="width: 750px; margin:0 auto">  
+            <p>
+                Number of H1-B Visas Sponsored in 2019
+            </p>
+            <br>
+        </div>
+    
     
   </body>
 
