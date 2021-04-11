@@ -176,13 +176,9 @@ top_companies_by_soc_state <- df[,cols] %>% group_by(SOC_CODE,EMPLOYER_STATE,EMP
   summarise(frequency = n()) %>%
   slice_max(order_by = frequency, n = top_n, with_ties = FALSE)
 
-top_companies_by_soc_state <- merge(top_companies_by_soc_state,soc_codes,by = "SOC_CODE")
-top_companies_by_soc_state <- rename(top_companies_by_soc_state[,2:5],SOC_CODE = job_category)
 
-
-top_companies_by_soc_state <- merge(top_companies_by_soc_state,states[c("Code","State")],by.x = "EMPLOYER_STATE",by.y = "Code")
-top_companies_by_soc_state <- rename(top_companies_by_soc_state[,2:5],EMPLOYER_STATE = State)
-
+top_companies_by_soc_state <- left_join(top_companies_by_soc_state,soc_codes,by = "SOC_CODE")
+top_companies_by_soc_state <- left_join(top_companies_by_soc_state,states[c("Code","State")],by =c("EMPLOYER_STATE"= "Code"))
 
 ```
 
