@@ -182,7 +182,7 @@ write.csv(top_companies_by_soc_state,"../data/processed/top_companies_by_soc_sta
 Filter example
 ```{r}
 #TODO: change soc code by name
-top_companies_by_soc_state[(top_companies_by_soc_state$SOC_CODE == 15) & (top_companies_by_soc_state$EMPLOYER_STATE == "HI"),]
+top_companies_by_soc_state[(top_companies_by_soc_state$SOC_CODE == 45) & (top_companies_by_soc_state$EMPLOYER_STATE == "MD"),]
 ```
 
 

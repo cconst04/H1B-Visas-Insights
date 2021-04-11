@@ -2,17 +2,23 @@
 <html lang="en">
   <head>
     <meta charset="utf-8">
-    <title>General Update Pattern</title>
+    <title>Company Recommender</title>
     <script src="https://d3js.org/d3.v6.js"></script>
 
-    <!-- Initialize a select button -->
-    <select id="selectState"></select>
+    
+
+    <div style="position: relative; left: 800px; top: 190px">
+        <!-- Initialize a select button -->
+        <select id="selectState"></select>
+        <!-- Initialize a select button -->
+        <select id="selectSocCode"></select>
+    </div>
 
   </head>
 
   <body>
 
-    <div id="ic-description" style="width: 600px">  
+    <div id="ic-description" style="width: 600px; position: relative; left: 50px;">  
         <h3>Company Recommender</h3>
         <p>
             Which company should you work for to maximize your chances of getting and H1-B Visa sponsored?
@@ -73,7 +79,12 @@ function filter_by_state(data, state) {
     return data.filter(function(d) { return (d.e_state === state); });
     };
 
-var filtered_data = getFilteredData(data, "TX", "15")
+   
+    
+var initial_state = "TX"
+var initial_soc_code = "15"
+
+var filtered_data = getFilteredData(data, initial_state, initial_soc_code)
 
 //constants
 var w = 700;
@@ -82,10 +93,11 @@ var top_n = 5;
 var offset = 0;
 var max_employer_name_length = d3.max(data, function(d) {return d.e_name.length});
 var longest_e_name = d3.filter(data,function(d) {return d.e_name.length == max_employer_name_length })[0].e_name
+
+//Dropdown data
 var states = [...new Set(data.map(d => d.e_state))]
-
-//var filtered_data_by_state =  filter_by_state(data, "TX")
-
+var filtered_data_by_state =  filter_by_state(data, initial_state)
+var soc_codes_of_state = [...new Set(filtered_data_by_state.map(d => d.job_cat))]
 
 //data.filter(function(d) {return } )
 
@@ -94,13 +106,24 @@ var states = [...new Set(data.map(d => d.e_state))]
 
 //dropdowns
 d3.select("#selectState")
-    .selectAll('states')
+    .selectAll('option')
     .data(states)
     .enter()
     .append('option')
     .text(d=>d) // text showed in the menu
     .attr("value", function (d) { return d; }) // corresponding value returned by the button
 
+d3.select("#selectState").property("value",initial_state)
+
+d3.select("#selectSocCode")
+    .selectAll('option')
+    .data(soc_codes_of_state)
+    .enter()
+    .append('option')
+    .text(d=>d) // text showed in the menu
+    .attr("value", function (d) { return d; }) // corresponding value returned by the button
+
+d3.select("#selectSocCode").property("value",initial_soc_code)
 
 
 
@@ -139,7 +162,7 @@ var yAxis = d3.axisLeft()
 var bars = svg.append("g")
     .attr("id", "bars")
     .attr("transform", `translate (${margin.left}, ${margin.top})`)
-.selectAll("rect")
+    .selectAll("rect")
     .data(filtered_data);
 
 bars.enter().append("rect")
@@ -150,13 +173,12 @@ bars.enter().append("rect")
     .attr("fill", "blue");
 
 //Labels
-var labels = d3.select("#bars")
-    .selectAll("text")
+var labels = d3.select("#bars") 
     .attr("transform", `translate (${margin.left}, ${margin.top})`)
+    .selectAll("text")
     .data(top_employers)
 
-labels.enter()
-    .append("text")
+labels.enter().append("text")
     .attr("class",'label')
     .attr("x", 0 )
     .attr("y", (d,i) =>  yScale(i+1)-3)
@@ -189,11 +211,8 @@ function update(data) {
      .attr("transform", `translate (${margin.left}, ${h-margin.bottom})`)
      .transition().duration(2000).call(xAxis);
 
-
-
-
     //Update bars
-    var bars = svg.selectAll("rect")    // data join
+    var bars = svg.select("#bars").selectAll("rect")    // data join
     .data(data);
 
     bars.enter()
@@ -209,18 +228,18 @@ function update(data) {
         .attr("width", d => xScale(d.freq))
         .attr("fill", "blue");
 
-    bars.exit().remove();    // remove extra elements
+    bars.exit().transition().duration(2000).attr("width",d=>xScale(0)).remove(); ;
 
+    //bars.exit().transition()   // remove extra elements
 
      //Update labels
-     var labels = d3.select("#bars")
-        .selectAll(".label")
+     var labels = svg.select("#bars").selectAll("text")
         .data(top_employers)
 
-    //setTimeout(() => {  
 
-    labels.enter() //add new elements just in case
-        .attr("x", 0 )
+    labels.enter()
+        .append("text") //add new elements just in case
+        .attr("x",0)
         .attr("y", (d,i) =>  yScale(i+1)-3)
         .attr("fill", "black")
         .attr("text-anchor", "right")
@@ -232,20 +251,52 @@ function update(data) {
         .transition().duration(500)
         .style("opacity", 1)
         .text(d => d);
-       // }, 2000);
 
+    labels.exit().remove();
     };
-
+   
 
 d3.select("#selectState").on("change",function(d){
     //Get input from state
     var selectedState = d3.select(this).property("value")
-    console.log(getFilteredData(data, selectedState, "15"))
-    update(filtered_data = getFilteredData(data, selectedState, "15"))
+
+    //filter data by state
+    var filtered_data_by_state =  filter_by_state(data, selectedState)
+
+    //Update possible soc codes
+    var soc_codes_of_state = [...new Set(filtered_data_by_state.map(d => d.job_cat))]
+    var soc_code_options = d3.select("#selectSocCode")
+                             .selectAll('option')
+                             .data(soc_codes_of_state)
+    soc_code_options.enter()
+        .append('option')
+        .text(d=>d) // text showed in the menu
+        .attr("value", function (d) { return d; }) // corresponding value returned by the button
+    soc_code_options.exit().remove(); 
+
+
+
+    var selectedSocCode = d3.select("#selectSocCode").property("value")
+    if (soc_codes_of_state.includes(selectedSocCode)) {
+        update(filtered_data = getFilteredData(data, selectedState, selectedSocCode))
+
+    } else {
+        update(filtered_data = getFilteredData(data, selectedState, soc_codes_of_state[0]))
+    
+    }
+
+})
+
+d3.select("#selectSocCode").on("change",function(d){
+    var selectedSocCode = d3.select(this).property("value")
+    var selectedState = d3.select("#selectState").property("value")
+
+    update(filtered_data = getFilteredData(data, selectedState, selectedSocCode))
 
 })
 
 
+    
 
 })
   .catch(function(error) {
