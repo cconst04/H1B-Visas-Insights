@@ -21,6 +21,7 @@ library(arules)
 df <- read.csv("../data/processed/processed_2019_V2.csv") #Using most recent data
 states <- read.csv("../data/external/states.csv")
 soc_codes = read.csv("../data/processed/soc_codes.csv")
+df <- df %>% filter(EMPLOYER_STATE %in% states$Code)
 ```
 
 Data dimensions
@@ -176,21 +177,20 @@ top_companies_by_soc_state <- df[,cols] %>% group_by(SOC_CODE,EMPLOYER_STATE,EMP
   slice_max(order_by = frequency, n = top_n, with_ties = FALSE)
 
 top_companies_by_soc_state <- merge(top_companies_by_soc_state,soc_codes,by = "SOC_CODE")
-
 top_companies_by_soc_state <- rename(top_companies_by_soc_state[,2:5],SOC_CODE = job_category)
-```
 
+
+top_companies_by_soc_state <- merge(top_companies_by_soc_state,states[c("Code","State")],by.x = "EMPLOYER_STATE",by.y = "Code")
+top_companies_by_soc_state <- rename(top_companies_by_soc_state[,2:5],EMPLOYER_STATE = State)
+
+
+```
 
 
 ```{r}
 write.csv(top_companies_by_soc_state,"../data/processed/top_companies_by_soc_state.csv")
 ```
 
-Filter example
-```{r}
-#TODO: change soc code by name
-top_companies_by_soc_state[(top_companies_by_soc_state$EMPLOYER_STATE == "MD"),]
-```
 
 
 
