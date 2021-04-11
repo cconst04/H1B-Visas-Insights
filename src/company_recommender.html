@@ -29,6 +29,10 @@
         <br>
     </div>
 
+    <div id = "graph-title" style = "width: 200px; position: relative; left: 280px">
+        <h3>Top Ranked Employers</h3>
+
+    </div>
 
     <div id="interactive-component">
     </div>
@@ -115,7 +119,7 @@ d3.select("#selectSocCode")
 
 d3.select("#selectSocCode").property("value",initial_soc_code)
 
-
+console.log(soc_codes_of_state)
 
 //variables
 var top_employers = filtered_data.map(d => d.e_name)
@@ -263,15 +267,20 @@ d3.select("#selectState").on("change",function(d){
     //Update possible soc codes
     var soc_codes_of_state = [...new Set(filtered_data_by_state.map(d => d.job_cat))]
     console.log(soc_codes_of_state)
+
     var soc_code_options = d3.select("#selectSocCode")
                              .selectAll('option')
-                             .data(soc_codes_of_state)
+                             .data([...new Set(filtered_data_by_state.map(d => d.job_cat))])
+
+    console.log(soc_code_options)                             
     console.log(soc_code_options.enter())
     soc_code_options.enter()
         .append('option')
         .text(d=>d) // text showed in the menu
         .attr("value", d=>d) // corresponding value returned by the button
         .merge(soc_code_options)
+        .text(d=>d) // text showed in the menu
+        .attr("value", d=>d) // corresponding value returned by the button
     
     console.log(soc_code_options.exit())
     soc_code_options.exit().remove(); 
@@ -295,9 +304,7 @@ d3.select("#selectSocCode").on("change",function(d){
     update(filtered_data = getFilteredData(data, selectedState, selectedSocCode))
 
 })
-
-
-    
+  
 
 })
   .catch(function(error) {
@@ -308,7 +315,7 @@ d3.select("#selectSocCode").on("change",function(d){
 
     
     </script>
-        <div id="ic-description" style="width: 600px; position: relative; left: 280px;">  
+        <div id="ic-description" style="width: 300px; position: relative; left: 250px;">  
             <p>
                 Number of H1-B Visas Sponsored in 2019
             </p>
