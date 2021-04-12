@@ -5,6 +5,8 @@ output:
     df_print: paged
 ---
 
+## Analysis of most recent year: 2020
+
 ```{r}
 library(ggplot2)
 library(dplyr)
@@ -13,16 +15,24 @@ library(forcats)
 library(choroplethr)
 library(choroplethrMaps)
 library(arules)
+library(treemap)
+
 ```
 
 
 
 ```{r}
-df <- read.csv("../data/processed/processed_2019_V2.csv") #Using most recent data
+df <- read.csv("../data/processed/processed_2020.csv") #Using most recent data
 states <- read.csv("../data/external/states.csv")
-soc_codes = read.csv("../data/processed/soc_codes.csv")
+states_population <- read.csv("../data/raw/state_population.csv")
+states <- left_join(states,states_population, by=c("State"="NAME"))
 df <- df %>% filter(EMPLOYER_STATE %in% states$Code)
+soc_codes = read.csv("../data/processed/soc_codes.csv")
+naics_codes = read.csv("../data/processed/naics_sectors.csv")
+
 ```
+
+
 
 Data dimensions
 ```{r}
@@ -35,52 +45,70 @@ Print column names
 names(df)
 ```
 
+Quick look at dataframe
 ```{r}
 head(df)
 ```
-```{r}
-top_companies = df %>% group_by(EMPLOYER_NAME) %>%  summarise(Frequency = n()) %>% arrange(desc(Frequency))
+### Top Employers
 
-ggplot(top_companies[1:20,],
-       aes(y = fct_rev(fct_inorder(factor(EMPLOYER_NAME))),
-           x = Frequency)) + 
-  geom_col() +
-  labs(y = "Employer Name")
+Lets look at the top 20 Companies overall in 2020 filing H1-B Visa applications. This means across all industries and jobs.
+```{r, fig.width=10}
+top_companies = df %>% group_by(EMPLOYER_NAME) %>%  dplyr::summarise(Frequency = n()) %>% arrange(desc(Frequency))
+
+top_companies[1:20,] %>% 
+  ggplot(aes(y = fct_rev(fct_inorder(factor(EMPLOYER_NAME))),x = Frequency)) + 
+  geom_col(fill="lightblue",color = "black") +
+  labs(y = "Employer Name", title = "Top H1-B Visa Sponsors in the U.S.", x = "Number of H1-B applications filed")
+
 ```
-The top 20 is dominated by Tech and Consulting companies (primarily). However, it's worth noticing that these companies are also very big in terms of their worth and more importantly, their number of employees. For example, Cognizant has 289.000 employees, Infosys 242.000, Tata Consultancy has 470.000, Google 135.000. It might be interesting to normalize these frequencies by the company size to get a better sense of the probability that a company sponsors an H1B visa for an employee.
 
-```{r}
-#state_choropleth(df,)
-a<- df %>% 
+The top 20 is dominated by Tech and Consulting companies (primarily). However, it's worth noticing that these companies are also very big in terms of their worth and more importantly, their number of employees. For example, Cognizant has 289.000 employees, Infosys 242.000, Tata Consultancy has 470.000, Google 135.000. Nevertheless, there are large companies in all industries, but for some reason tech and consulting stand out. For a future work, it might be interesting to normalize these frequencies by the company size to get a better sense of the probability that a company sponsors an H1B visa for an employee.
+
+
+### Geographical analysis
+
+Now we want to see if there are any geographical patterns. To do this we calculated the number of H1-B application per 1M people and plot
+```{r fig.width= 13}
+tidydf <- df %>% 
   group_by(EMPLOYER_STATE) %>% 
-  summarise(value = n()) %>% 
+  dplyr::summarise(value = n()) %>% 
   filter(EMPLOYER_STATE %in% states$Code)
 
-a<- merge(a,states,by.x = "EMPLOYER_STATE",by.y = "Code") %>% mutate(region = tolower(State))
+tidydf<- left_join(tidydf,states,by = c("EMPLOYER_STATE" = "Code")) %>% mutate(region = tolower(State))
+tidydf <- tidydf %>% mutate(value = value*1000000/tidydf$POPESTIMATE2020)
 
-data(a)
-state_choropleth(as.data.frame(a),title  = "H1B visa requests in the US", 
-                 legend = "Frequency")
+state_choropleth(as.data.frame(tidydf),title  = "H1B visa requests in the US", 
+                 legend = "Applications per 1M people")
 ```
 
-```{r,fig.height= 7}
+It looks that there are high concentrations on the coasts. Woud the percentage of immigrant population by state have something to do with this? Apparently, yes! After doing some research, we found that some of the top states by immigrant population (percentage) include:
 
-df <- merge(df,states,by.x = "EMPLOYER_STATE",by.y = "Code")
+* California (27%)
+* New York (23%)
+* New Jersey (22%)
+* Texas (17%)
+* Washington (15%)
+* Massachusetts (17%)
+* Illinois (14%)
+* Maryland (15%)
 
-df %>%
-  ggplot(aes(y = fct_rev(fct_infreq(State)))) + 
-  geom_bar() +
-  labs(y = "State", x = "Frequency")
-```
+On the other hand, the states with least immigrants are:
 
-There may be multiple reasons influencing the number of H1B visas requests by state. Some of them could be:
+* Montata (2%)
+* Mississippi (2.5%)
+* Alabama (3%)
+* South Dakota (4%)
 
-* Number of immigrants 
-* Whether or not there is a high demand for tech jobs (since we've seen a connection with technology)
-* Simply the population size
+Of course, immigration is not a perfect predictor for the number of applications. There are other factor into play like the presence of popular industries (e.g., Tech, Finance, Consulting). Another factor may be the wealth of the state measured by houshold income which would help explain some of the variance. For example, Nevada and Arizona are in the top 15 of the states with most immigrants but their percentage of applications is not as high as expected, nonetheless, these states are in the 28th and 30th place according to household income. On the other hand, the top "richest" states agree with the ones with highes immigrants and highest visa applications.
+
+Note: data about immigrant population is based on: https://en.wikipedia.org/wiki/List_of_U.S._states_and_territories_by_immigrant_population and https://worldpopulationreview.com/state-rankings/states-with-the-most-immigrants. Data about household income was found here: https://en.wikipedia.org/wiki/List_of_U.S._states_and_territories_by_income
 
 
-```{r}
+### Employer Industry and Job Category Composition
+
+How is the demand for international workers across different indusrties? In other words, what job categories are in high demand for the different industry sectors? Here we present a treemap that shows the top 4 job categories for the top 5 industry sectors. We can't show all jobs and industries for visualization purposes.
+
+```{r fig.width=12, fig.height=12}
 get_num_digits <-function(x){
                   num_digits = floor (log10 (abs (x))) + 1
                   return(num_digits)
@@ -96,33 +124,81 @@ df$naics_sector <-strict_substr(df,"NAICS_CODE",1,2)
 df$industry_group <- strict_substr(df,"NAICS_CODE",1,4)
 df$naics_industry <- strict_substr(df,"NAICS_CODE",1,5)
 df$national_industry <- strict_substr(df,"NAICS_CODE",1,6)
+
+
+naics_codes$industry_group <- as.character(naics_codes$industry_group)
+df <- left_join(df,naics_codes,by="industry_group")
+df <- left_join(df,soc_codes,by = "SOC_CODE")
+
+
+top_n_industries = 5
+top_n_jobs = 4
+
+top_industries <- (df %>%
+                    group_by(Title) %>% 
+                    dplyr::summarise(Frequency = n()) %>% 
+                    arrange(desc(Frequency)) %>%
+                    head(top_n_industries) )['Title']
+
+
+top_ind_job <- df %>% filter(Title %in% top_industries$Title) %>%
+                group_by(Title,job_category) %>% 
+                dplyr::summarise(Frequency = n()) %>% arrange(Title,desc(Frequency) )%>% 
+                group_by(Title) %>% slice_head(n = top_n_jobs)
+
+
+treemap(top_ind_job,
+        index = c('Title','job_category'),
+        vSize = 'Frequency',
+        type = 'index',
+    fontsize.labels=c(10,8),                # size of labels. Give the size per level of aggregation: size for group, size for subgroup, sub-subgroups...
+    fontcolor.labels=c("white","black"),    # Color of labels
+    fontface.labels=c(2,1),                  # Font of labels: 1,2,3,4 for normal, bold, italic, bold-italic...
+    bg.labels=c("black"),              # Background color of labels
+    align.labels=list(
+        c("left", "top"), 
+        c("right", "bottom")
+        ),                                   # Where to place labels in the rectangle?
+    overlap.labels=0.1,                      # number between 0 and 1 that determines the tolerance of the overlap between labels. 0 means that labels of lower levels are not printed if higher level labels overlap, 1  means that labels are always printed. In-between values, for instance the default value .5, means that lower level labels are printed if other labels do not overlap with more than .5  times their area size.
+    inflate.labels=F,
+    palette = 'Pastel1',
+    title = "Composition of top company industries (highlighted in black) and job categories")                       # If true, labels are bigger when rectangle is bigger.
+
 ```
+
+It is very clear that industries belonging to the STEM (Science, Technology, Engineering and Mathematics) fields dominate in visa applications. This is great news for Data Scientists like us because it means companies in our industry are more than happy to sponsor us (what a relief). Additionally, the top job categories in each industry sector remain pretty much the same:
+
+* Computer and Mathematical Occupationis
+* Business and Financial Operations Occupations
+* Management Occupations
+* Architecture and Engineerring Occupations
+
+Nevertheless, there is something surprising: the third industry with most H1-B applications is Colleges, Universities and Professional Schools. This means that these sectors are very interested in international workers and would then be great places to apply for jobs. We couldn't resist to give a peek at the top employers in this last sector:
 
 ```{r}
-top_n = 20
-df %>%
-  group_by(industry_group) %>% 
-  summarise(Frequency = n()) %>% 
-  arrange(desc(Frequency)) %>%
-  head(top_n) %>%
-  ggplot(aes(y = fct_rev(fct_inorder(factor(industry_group))), x = Frequency)) +
-  geom_col()
+df[df$Title == "Colleges, Universities, and Professional Schools",] %>% 
+  group_by(EMPLOYER_NAME) %>%
+  dplyr::summarise(Frequency = n()) %>%
+  arrange(desc(Frequency)) %>% 
+  drop_na()
 ```
 
+We are so proud to see Columbia University at the top! We are at a great place to learn but also with substantial chances of employment.
 
 
-```{r}
-head(df$hourly_wage)
-df[df$hourly_wage<=300,]%>% ggplot(aes(x = hourly_wage)) + geom_histogram()
-```
+### Wage analysis
 
+How are H1-B Visa applicants being paid? Our hypothesis is that they should be getting a more than average wage because this visa is intended for "speciallized workers".
+
+We downloaded the latest personal income information provided by the U.S. Census in order to compare the general US citizen wages with that of the people applying for H1-B visas.
+Let's look at the data. Note, this file was cleaned to extract the lower and upper wage bounds 
 
 ```{r}
 personal_income=read.csv("../data/processed/personal_income.csv")
 personal_income
 ```
 
-These income ranges are too specific for this analysis so we decided to group by ranges of $25K, except for the last category which is still 100K or more. For this we created a new variable that gets the upper bound of the new categories by using a simple modulo operation over the lower bounds of the old categories. I can 
+These income ranges are too specific for this analysis so we decided to group by ranges of $25K, except for the last category which is still 100K or more. 
 
 ```{r}
 
@@ -131,7 +207,7 @@ num_breaks = (max(personal_income$lower_bound)-min(personal_income$lower_bound)+
 breaks  = c(seq(0,100000,group_size),100000.0001)
 
 personal_income$new_groups <-discretize(personal_income$lower_bound,method = "fixed",breaks=breaks,infinity = TRUE)
-personal_income$new_groups_labes <- fct_recode(personal_income$new_groups,
+personal_income$income_group <- fct_recode(personal_income$new_groups,
                                                "Less than $25K"="[-Inf,2.5e+04)",
                                                "$25K to $50K" = "[2.5e+04,5e+04)",
                                                "$50K to $75K" = "[5e+04,7.5e+04)",
@@ -139,14 +215,7 @@ personal_income$new_groups_labes <- fct_recode(personal_income$new_groups,
                                                "$100K or more" = "[1e+05, Inf]")
 personal_income
 ```
-```{r}
-personal_income %>% 
-  group_by(new_groups_labes) %>% 
-  summarise(percentage = sum(frequency)*100/sum(personal_income$frequency)) %>%
-  ggplot(aes(x = new_groups_labes, y = percentage)) +
-  geom_col()
-  
-```
+Now lets create the same labels for our dataset
 
 ```{r}
 
@@ -158,26 +227,52 @@ df$income_group <- fct_recode(df$income_group,
                                                "$75K to $100K" = "[7.5e+04,1e+05)",
                                                "$100K or more" = "[1e+05, Inf]")
 
-
-n = nrow(df)
-df %>% 
-  group_by(income_group) %>% 
-  summarise(percentage = n()/n) %>%
-  ggplot(aes(x = income_group, y = percentage)) +
-  geom_col()
-  
+head(df)
 ```
+
+Finally, let's see how different are wage groups for H1-B applicants vs the general population.
+```{r}
+personal_income_by_wage_range <- personal_income %>% 
+                          group_by(income_group) %>% 
+                          dplyr::summarise(percentage = sum(frequency)*100/sum(personal_income$frequency)) 
+
+personal_income_by_wage_range$type = "General"
+
+df_by_wage_range <- df %>% 
+                          group_by(income_group) %>% 
+                          dplyr::summarise(percentage = n()*100/nrow(df)) 
+df_by_wage_range$type = "H1-B"
+
+
+tidydf <- rbind(personal_income_by_wage_range,df_by_wage_range)
+
+#Thanks to https://edav.info/cleveland.html
+theme_dotplot <- theme_bw(14) +
+    theme(axis.text.y = element_text(size = rel(.75)),
+        axis.ticks.y = element_blank(),
+        axis.title.x = element_text(size = rel(.75)),
+        panel.grid.major.x = element_blank(),
+        panel.grid.major.y = element_line(size = 0.5),
+        panel.grid.minor.x = element_blank())
+
+
+ggplot(tidydf, aes(percentage, income_group ,color = type)) +
+  geom_point() +
+  labs(x = "Percentage of population", y = "Annual Income Range", title = "Wage Income Ranges", subtitle = "H1-B Applicants vs U.S. General Population" ) +
+  theme_dotplot
+
+```
+
+The differences in salary are stagering! The U.S Nation median wage is in the 25K-50K range while that of H1-B applicants is in the 75K-100K range. This is most likely a reflection of the kind of people which H1-B visas are intended for: High-Skilled speciallized workers with at least a bachelor's degree. Furthermore, notice that the percentage of H1-B applicants that earn less than 50K is minimal. This could mean that "unspecialized" workers are not likely to have "low" wages, or that speciallized workers at low-paying are not willing to sponsor visas because they don't have the financial means (which is why they are paying low wages).
 
 
 ```{r}
 top_n = 5
 cols = c("SOC_CODE","EMPLOYER_STATE","EMPLOYER_NAME")
 top_companies_by_soc_state <- df[,cols] %>% group_by(SOC_CODE,EMPLOYER_STATE,EMPLOYER_NAME) %>%
-  summarise(frequency = n()) %>%
+  dplyr::summarise(frequency = n()) %>%
   slice_max(order_by = frequency, n = top_n, with_ties = FALSE)
 
-
-top_companies_by_soc_state <- left_join(top_companies_by_soc_state,soc_codes,by = "SOC_CODE")
 top_companies_by_soc_state <- left_join(top_companies_by_soc_state,states[c("Code","State")],by =c("EMPLOYER_STATE"= "Code"))
 
 ```
